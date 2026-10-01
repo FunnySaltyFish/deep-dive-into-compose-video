@@ -1,0 +1,26 @@
+# Build outputs
+build/
+preview_*.mp4
+*.mp4
+*.wav
+
+# Dependencies
+node_modules/
+package-lock.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+.env
