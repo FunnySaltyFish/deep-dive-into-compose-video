@@ -10,7 +10,9 @@ import json
 import os
 import re
 import sys
+import time
 import wave
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from openai import OpenAI
@@ -41,25 +43,36 @@ def main(script_path: str):
     AUDIO.mkdir(parents=True, exist_ok=True)
     client = OpenAI(api_key=os.environ["MIMO_API_KEY"], base_url="https://api.xiaomimimo.com/v1")
 
-    manifest = {}
-    for cue in script["cues"]:
-        spoken = cue.get("tts", cue["text"])  # tts may add a leading style tag, spoken words stay identical
+    def job(cue):
+        spoken = cue.get("tts", cue["text"])  # tts may spell numbers out; the words stay identical
         key = hashlib.sha1(f"{voice}|{style}|{cue.get('style','')}|{spoken}".encode()).hexdigest()[:12]
         out = AUDIO / f"{cue['id']}_{key}.wav"
         if not out.exists():
-            print(f"[tts] {cue['id']}: {cue['text'][:30]}...")
             messages = []
             s = (style + " " + cue.get("style", "")).strip()
             if s:
                 messages.append({"role": "user", "content": s})
             messages.append({"role": "assistant", "content": spoken})
-            resp = client.chat.completions.create(
-                model="mimo-v2.5-tts",
-                messages=messages,
-                audio={"format": "wav", "voice": voice},
-            )
-            out.write_bytes(base64.b64decode(resp.choices[0].message.audio.data))
-        manifest[cue["id"]] = {"file": out.name, "duration": round(wav_duration(out), 3), "text": cue["text"]}
+            for attempt in range(4):
+                try:
+                    resp = client.chat.completions.create(
+                        model="mimo-v2.5-tts",
+                        messages=messages,
+                        audio={"format": "wav", "voice": voice},
+                    )
+                    out.write_bytes(base64.b64decode(resp.choices[0].message.audio.data))
+                    break
+                except Exception as e:  # transient API errors: retry a few times
+                    print(f"[tts] {cue['id']} attempt {attempt + 1} failed: {e}")
+                    time.sleep(2 + attempt * 3)
+            else:
+                raise SystemExit(f"tts failed for {cue['id']}")
+            print(f"[tts] {cue['id']}: {cue['text'][:30]}")
+        return cue["id"], {"file": out.name, "duration": round(wav_duration(out), 3), "text": cue["text"]}
+
+    speech = [c for c in script["cues"] if "text" in c]
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        manifest = dict(ex.map(job, speech))
 
     (AUDIO / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"[tts] {len(manifest)} cues, total {sum(v['duration'] for v in manifest.values()):.1f}s")

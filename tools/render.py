@@ -24,7 +24,10 @@ def open_page(p, w):
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.on("console", lambda m: m.type == "error" and errors.append(m.text))
     page.goto(PAGE)
-    page.wait_for_function("window.DURATION !== undefined")
+    try:
+        page.wait_for_function("window.DURATION !== undefined", timeout=20000)
+    except Exception:
+        raise SystemExit("page failed to init: " + " | ".join(errors))
     page.evaluate("document.fonts.ready")
     if errors:
         raise SystemExit("page errors:\n" + "\n".join(errors))
@@ -49,7 +52,15 @@ def main():
         if a.stills:
             out = ROOT / "build" / "stills"
             out.mkdir(parents=True, exist_ok=True)
-            for t in [float(x) for x in a.stills.split(",")]:
+            times = []
+            for x in a.stills.split(","):
+                if ":" in x:  # range a:b:step
+                    s, e, st = (float(v) for v in x.split(":"))
+                    while s <= e:
+                        times.append(round(s, 2)); s += st
+                else:
+                    times.append(float(x))
+            for t in times:
                 page.evaluate(f"window.seek({t})")
                 page.screenshot(path=str(out / f"t{t:06.2f}.png"))
             print("stills ->", out)

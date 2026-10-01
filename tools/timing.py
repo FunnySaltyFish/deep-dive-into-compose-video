@@ -1,9 +1,10 @@
 """Build the master timeline from the script and the synthesized narration.
 
-Usage: python tools/timing.py script/sample.json
+Usage: python tools/timing.py script/full.json
 Writes build/timing.json (for the mixer) and build/timing.js (for the animation page).
-Each cue gets: start, end (voiced end), and subtitle segments split at punctuation,
+Each cue gets: start, voiceStart, voiceEnd and subtitle segments split at punctuation,
 snapped to real pauses in the audio so captions change when the voice actually pauses.
+Entries with a "chapter" field are silent title-card blocks of `hold` seconds.
 """
 import json
 import re
@@ -48,7 +49,7 @@ def pauses(a, min_len=0.09):
 
 def split_text(text):
     """Split at sentence/clause punctuation into display segments, keep words intact."""
-    parts = re.findall(r"[^，。？！：；]+[，。？！：；]?", text)
+    parts = re.findall(r"[^，。？！：；]+[，。？！：；]*", text)
     segs, cur = [], ""
     for p in parts:
         # always break after a full sentence; otherwise break when the line gets long
@@ -59,20 +60,28 @@ def split_text(text):
             cur += p
     if cur:
         segs.append(cur)
+    assert "".join(segs) == text, f"split lost characters: {text}"
     return segs
 
 
 def display(seg):
     # Drop trailing clause punctuation like a normal subtitle; keep ？ and ！
-    return re.sub(r"[，。：；]$", "", seg.strip())
+    return re.sub(r"[，。：；]+$", "", seg.strip())
 
 
 def main(script_path):
     script = json.loads(Path(script_path).read_text(encoding="utf-8"))
     manifest = json.loads((AUDIO / "manifest.json").read_text(encoding="utf-8"))
     t = script.get("lead", 0.6)
-    cues = []
+    cues, chapters = [], []
     for cue in script["cues"]:
+        if "chapter" in cue:
+            if chapters:
+                chapters[-1]["end"] = round(t, 3)
+            chapters.append({"id": cue["id"], "num": cue["chapter"], "name": cue["name"],
+                             "rail": cue.get("rail", ""), "t0": round(t, 3), "body": round(t + cue.get("hold", 2.4), 3)})
+            t += cue.get("hold", 2.4)
+            continue
         m = manifest[cue["id"]]
         assert m["text"] == cue["text"], f"audio for {cue['id']} is stale, rerun tts.py"
         a = load(AUDIO / m["file"])
@@ -92,20 +101,27 @@ def main(script_path):
                 snap = est
             bounds.append(voice_start + snap)
         bounds.append(voice_end + 0.25)
+        subs, c0 = [], 0
+        for i, s in enumerate(segs):
+            subs.append({"t0": round(bounds[i], 3), "t1": round(bounds[i + 1], 3), "text": display(s),
+                         "c0": c0, "c1": c0 + len(s)})
+            c0 += len(s)
         cues.append({
             "id": cue["id"], "text": cue["text"], "file": m["file"],
             "start": round(start, 3), "voiceStart": round(voice_start, 3), "voiceEnd": round(voice_end, 3),
-            "subs": [{"t0": round(bounds[i], 3), "t1": round(bounds[i + 1], 3), "text": display(s)}
-                     for i, s in enumerate(segs)],
+            "subs": subs,
         })
         t = voice_end + 0.12 + cue.get("gap", 0.4)
     duration = round(t + script.get("tail", 2.0), 3)
-    out = {"duration": duration, "cues": cues}
+    if chapters:
+        chapters[-1]["end"] = duration
+    out = {"duration": duration, "cues": cues, "chapters": chapters}
     (ROOT / "build" / "timing.json").write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
     (ROOT / "build" / "timing.js").write_text("window.TIMING = " + json.dumps(out, ensure_ascii=False) + ";", encoding="utf-8")
-    print(f"[timing] {len(cues)} cues, duration {duration}s")
-    for c in cues:
-        print(f"  {c['id']} {c['start']:6.2f}-{c['voiceEnd']:6.2f} | " + " / ".join(s["text"] for s in c["subs"]))
+    print(f"[timing] {len(cues)} cues, {len(chapters)} chapters, duration {duration}s ({duration/60:.1f} min)")
+    if "-v" in sys.argv:
+        for c in cues:
+            print(f"  {c['id']} {c['start']:7.2f}-{c['voiceEnd']:7.2f} | " + " / ".join(s["text"] for s in c["subs"]))
 
 
 if __name__ == "__main__":

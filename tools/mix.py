@@ -71,6 +71,11 @@ def make_sfx():
                   + np.sin(2 * np.pi * 70 * t) * env(len(t), 0.005, 0.18) * 0.6)
     t = t_(1.6)
     s["ding"] = sum(np.sin(2 * np.pi * fr * t) * w for fr, w in [(1318.5, 0.5), (1975.5, 0.25), (2637, 0.12)]) * env(len(t), 0.003, 0.45) * 0.35
+    t = t_(2.2)
+    sub = np.sin(2 * np.pi * 55 * t) * env(len(t), 0.01, 0.5) * 0.7
+    bell = sum(np.sin(2 * np.pi * fr * t) * w for fr, w in [(659.3, 0.4), (987.8, 0.25), (1318.5, 0.12)]) * env(len(t), 0.004, 0.7) * 0.4
+    sw = np.zeros(len(t)); sw[: int(0.9 * SR)] = sweep_noise(0.9, 400, 4000, 0.5)
+    s["chapter"] = sub + bell + sw
     t = t_(0.35)
     f = 420 * np.exp(-t * 4)
     s["remove"] = np.sin(2 * np.pi * np.cumsum(f) / SR) * env(len(t), 0.003, 0.1) * 0.45
@@ -126,6 +131,15 @@ def make_music(dur):
     return out
 
 
+def movavg(x, k):
+    """O(N) centered moving average (np.convolve with a long kernel is far too slow for 17 min of audio)."""
+    c = np.cumsum(np.concatenate([np.zeros(1), x]))
+    h = k // 2
+    i = np.arange(len(x))
+    lo, hi = np.clip(i - h, 0, len(x)), np.clip(i + h + 1, 0, len(x))
+    return (c[hi] - c[lo]) / (hi - lo)
+
+
 def read_wav(p):
     with wave.open(str(p), "rb") as w:
         sr = w.getframerate()
@@ -151,9 +165,9 @@ def main():
     music = np.zeros(n)
     music[: int(dur * SR)] = make_music(dur)
     # ducking: music dips under the voice
-    vb = np.convolve(np.abs(voice), np.ones(2400) / 2400, mode="same") > 0.01
+    vb = movavg(np.abs(voice), 2400) > 0.01
     duck = np.where(vb, 0.45, 1.0)
-    duck = np.convolve(duck, np.ones(SR // 4) / (SR // 4), mode="same")
+    duck = movavg(duck, SR // 4)
     fade = np.clip(np.minimum(np.arange(n) / (1.5 * SR), (dur * SR - np.arange(n)) / (2.0 * SR)), 0, 1)
     music *= duck * fade * 0.9
 
