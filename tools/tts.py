@@ -30,12 +30,27 @@ def load_env():
                 os.environ.setdefault(m.group(1), m.group(2).strip().strip('"'))
 
 
+def speakable(s):
+    """Make code-ish tokens readable for TTS: split CamelCase into words, read '.' as 点."""
+    s = re.sub(r"(?<=\d)\.(?=\d)", "点", s)                        # 1.12 -> 1点12
+    s = re.sub(r"(?<=[A-Za-z0-9_)\]])\.(?=[A-Za-z])", " 点 ", s)   # Modifier.Node
+    s = re.sub(r"(?<![A-Za-z0-9])\.(?=[A-Za-z])", "点 ", s)        # .width
+    s = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", s)                     # SlotTable -> Slot Table
+    s = re.sub(r"(?<=[A-Z])(?=[A-Z][a-z])", " ", s)                # GPUBuffer -> GPU Buffer
+    return re.sub(r" {2,}", " ", s)
+
+
 def wav_duration(path: Path) -> float:
     with wave.open(str(path), "rb") as w:
         return w.getnframes() / w.getframerate()
 
 
 def main(script_path: str):
+    if "--dry" in sys.argv:
+        for c in json.loads(Path(script_path).read_text(encoding="utf-8"))["cues"]:
+            if "text" in c and speakable(c.get("tts", c["text"])) != c.get("tts", c["text"]):
+                print(c["id"], speakable(c.get("tts", c["text"])))
+        return
     load_env()
     script = json.loads(Path(script_path).read_text(encoding="utf-8"))
     voice = script.get("voice", "白桦")
@@ -44,7 +59,7 @@ def main(script_path: str):
     client = OpenAI(api_key=os.environ["MIMO_API_KEY"], base_url="https://api.xiaomimimo.com/v1")
 
     def job(cue):
-        spoken = cue.get("tts", cue["text"])  # tts may spell numbers out; the words stay identical
+        spoken = speakable(cue.get("tts", cue["text"]))  # tts may spell numbers out; the words stay identical
         key = hashlib.sha1(f"{voice}|{style}|{cue.get('style','')}|{spoken}".encode()).hexdigest()[:12]
         out = AUDIO / f"{cue['id']}_{key}.wav"
         if not out.exists():

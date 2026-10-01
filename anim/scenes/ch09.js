@@ -45,6 +45,156 @@ Modifier
   const light = tag(L, '轻量 · 不可变', C.ink2, ex + 5 * (ew + egap) + 10, descY + 22, { fs: 20 });
   show(kw('o03', '轻量'), light);
 
+  // ---- o03a..o03f: how the description is built (CombinedModifier) and traversed ----
+  const tA = vs('o03a');
+  hide(tA - 0.2, [descLbl, ...oldDesc, light]);
+  const thenTxt = ['then(Size)', 'then(Size)', 'then(GraphicsLayer)', 'then(decoration)', 'then(Padding)'];
+  const thenTags = thenTxt.map((t, i) => { const g = tag(L, '= ' + t, COLS[i], 1580, code.y(i + 2) - 15, { fs: 17 }); g.classList.add('m'); return g; });
+  const tDots = kw('o03a', '每一个点');
+  const dotHl = [2, 3, 4, 5, 6].map((n, i) => { const h = code.hl(n, n, COLS[i]); tl.set(h, { opacity: 0 }, t0); return h; });
+  thenTags.forEach((g, i) => show(tDots + i * 0.22, g, { dx: -14, dy: 0, sfx: i ? false : 'tick', g: 0.35 }));
+  dotHl.forEach((h, i) => { tl.to(h, { opacity: 1, duration: 0.15 }, tDots + i * 0.22); });
+  tl.to(dotHl, { opacity: 0, duration: 0.3 }, kw('o03a', 'then') + 0.6);
+
+  // tree: C1 = Combined(width, height), C2 = Combined(C1, graphicsLayer) ... C4 = Combined(C3, padding)
+  const tB = vs('o03b');
+  hide(tB - 0.25, [P.el, code.el, ...thenTags]);
+  const TR = {
+    C4: [1300, 190], C3: [1100, 340], C2: [900, 490], C1: [700, 640],
+    W: [500, 790], H: [900, 790], G: [1100, 640], D: [1300, 490], A: [1500, 340],
+  };
+  const LEAF = { W: ['SizeElement<small>200dp</small>', 0], H: ['SizeElement<small>80dp</small>', 1], G: ['BlockGraphics<small>Layer · 偶数 λ</small>', 2],
+    D: ['Background<small>Element</small>', 3], A: ['Padding<small>12dp</small>', 4] };
+  const TN = {};
+  const LW = 190, LH = 64, CWd = 170, CHt = 56;
+  Object.entries(TR).forEach(([k, [x, y]]) => {
+    const leaf = LEAF[k];
+    const w = leaf ? LW : CWd, h = leaf ? LH : CHt;
+    const e = div(L, 'mcell ' + (leaf ? 'desc' : 'node2'), x - w / 2, y - h / 2, leaf ? leaf[0] : `Combined<small>Modifier #${k[1]}</small>`, w, h);
+    e.style.setProperty('--c', leaf ? COLS[leaf[1]] : C.col);
+    TN[k] = Object.assign(e, { w, h, x, y });
+  });
+  const edge = (pa, ch, kind) => {
+    const a = TN[pa], b = TN[ch], o = kind === 'outer';
+    const p = path(ov, H.edgeD(a.x + (o ? -30 : 30), a.y + a.h / 2 + 2, b.x, b.y - b.h / 2 - 8), o ? C.a2 : C.a3, { w: 2.5, arrow: true });
+    const lb = tag(L, kind, o ? C.a2 : C.a3, (a.x + b.x) / 2 + (o ? -86 : 18), (a.y + b.y) / 2 - 14, { fs: 15 });
+    lb.classList.add('m');
+    return { p, lb };
+  };
+  const E = { C1: [edge('C1', 'W', 'outer'), edge('C1', 'H', 'inner')], C2: [edge('C2', 'C1', 'outer'), edge('C2', 'G', 'inner')],
+    C3: [edge('C3', 'C2', 'outer'), edge('C3', 'D', 'inner')], C4: [edge('C4', 'C3', 'outer'), edge('C4', 'A', 'inner')] };
+  const treeAll = [...Object.values(TN), ...Object.values(E).flat().flatMap((e) => [e.p, e.lb])];
+  const ring = (t, e, color, hold = 1.0) => {
+    tl.fromTo(e, { boxShadow: 'inset 0 0 0 2.5px var(--c)' }, { boxShadow: `inset 0 0 0 4px ${color}, 0 0 28px ${color}`, duration: 0.25, ...IR }, t);
+    tl.to(e, { boxShadow: 'inset 0 0 0 2.5px var(--c)', duration: 0.4 }, t + hold);
+  };
+  // o03b: width.then(height) -> Combined #1
+  show(tB + 0.1, [TN.W, TN.H], { st: 0.15, dy: 16, sfx: 'pop', g: 0.35 });
+  pop(kw('o03b', 'CombinedModifier'), TN.C1, { s: 0.6 });
+  const tOut = kw('o03b', 'outer 是'), tIn = kw('o03b', 'inner 是');
+  drawIn(tOut, E.C1[0].p, 0.35); show(tOut, E.C1[0].lb, { dy: 0 }); ring(tOut + 0.2, TN.W, C.a2);
+  drawIn(tIn, E.C1[1].p, 0.35); show(tIn, E.C1[1].lb, { dy: 0 }); ring(tIn + 0.2, TN.H, C.a3);
+  // o03c: the tree grows up and to the right
+  const tGrow = kw('o03c', '五个修饰符');
+  [['C2', 'G'], ['C3', 'D'], ['C4', 'A']].forEach(([c, l], i) => {
+    const t = tGrow + 0.2 + i * 0.75;
+    show(t, TN[l], { dy: 16, sfx: 'pop', g: 0.3 });
+    pop(t + 0.25, TN[c], { s: 0.6, sfx: false });
+    E[c].forEach((e) => { drawIn(t + 0.35, e.p, 0.3); show(t + 0.35, e.lb, { dy: 0 }); });
+  });
+  const lean = tag(L, '向左倾斜 · outer 一路向左下', C.ink2, 1420, 176, { fs: 20 });
+  show(kw('o03c', '向左倾斜'), lean, { sfx: 'tick', g: 0.3 });
+  ring(kw('o03c', '最外层的 inner'), TN.A, C.a3, 1.4);
+  ring(kw('o03c', '越往左下'), TN.W, C.a2, 1.4);
+
+  // o03d: foldIn = outer first, then inner -> writing order; foldOut = reverse
+  const SH = ['width', 'height', 'graphicsLayer', 'background', 'padding'];
+  const rowIn = div(L, 'lbl m', 100, 140, 'foldIn →');
+  const rowOut = div(L, 'lbl m', 100, 210, 'foldOut →');
+  const inChips = SH.map((t, i) => { const g = tag(L, t, COLS[i], 260 + i * 165, 140, { fs: 19 }); g.classList.add('m'); return g; });
+  const outChips = SH.slice().reverse().map((t, i) => { const g = tag(L, t, COLS[4 - i], 260 + i * 165, 210, { fs: 19 }); g.classList.add('m'); return g; });
+  hide(vs('o03d') - 0.1, lean);
+  const tWalk = kw('o03d', 'foldIn');
+  show(tWalk, rowIn, { dx: -14, dy: 0 });
+  const cur = div(L, 'curptr', 0, 0, '<span>foldIn</span>');
+  const at = (k) => ({ left: TN[k].x - TN[k].w / 2 - 6, top: TN[k].y - TN[k].h / 2 - 6, width: TN[k].w + 12, height: TN[k].h + 12 });
+  tl.set(cur, at('C4'), t0);
+  pop(tWalk + 0.1, cur, { s: 1.15, sfx: 'tick' });
+  const tDown = kw('o03d', '先走完 outer');
+  ['C3', 'C2', 'C1'].forEach((k, i) => { tl.to(cur, { ...at(k), duration: 0.3, ease: 'power2.inOut' }, tDown - 0.2 + i * 0.35); });
+  sfx(tDown, 'swoosh', 0.35);
+  ['宽度', '高度', '图层', '装饰', '内边距'].forEach((w, i) => {
+    const t = kw('o03d', w);
+    tl.to(cur, { ...at(['W', 'H', 'G', 'D', 'A'][i]), duration: 0.28, ease: 'power2.inOut' }, t - 0.3);
+    pop(t, inChips[i], { s: 0.6, sfx: 'tick', g: 0.35 });
+  });
+  const tFo = kw('o03d', 'foldOut');
+  hide(tFo - 0.1, cur);
+  show(tFo, rowOut, { dx: -14, dy: 0 });
+  outChips.forEach((g, i) => pop(tFo + 0.3 + i * 0.16, g, { s: 0.6, sfx: i ? false : 'pop', g: 0.3 }));
+
+  // o03e: NodeChain.fillVector flattens the tree with an explicit stack
+  const tE = vs('o03e');
+  hide(tE - 0.1, [rowIn, rowOut, ...inChips, ...outChips]);
+  const tStk = kw('o03e', '显式的栈');
+  const stk = div(L, 'panel', 90, 470, '<div class="ph">fillVector · stack</div>', 250, 400);
+  show(tStk, stk, { sfx: 'whoosh', g: 0.3 });
+  const SY = (k) => 800 - k * 58;
+  const leafS = {};
+  const pushS = (t, k, key) => {
+    const leaf = LEAF[key];
+    const e = div(L, 'mcell desc', 110, SY(k), leaf ? leaf[0] : `Combined<small>#${key[1]}</small>`, 210, 50);
+    e.style.setProperty('--c', leaf ? COLS[leaf[1]] : C.col);
+    tl.fromTo(e, { opacity: 0, y: -26 }, { opacity: 1, y: 0, duration: 0.25, ease: 'power2.out', ...IR }, t);
+    if (leaf) leafS[key] = e;
+    return e;
+  };
+  const popS = (t, e, key) => {
+    tl.to(e, { opacity: 0, x: 60, duration: 0.25, ease: 'power2.in' }, t);
+    sfx(t, 'tick', 0.3);
+    ring(t, TN[key], C.upd, 0.5);
+  };
+  let top = pushS(tStk + 0.3, 0, 'C4');
+  const tPop = kw('o03e', '弹出一个');
+  // pop Combined at slot i, push its inner (slot i) then its outer (slot i+1) -> outer pops first
+  [['C4', 'A', 'C3'], ['C3', 'D', 'C2'], ['C2', 'G', 'C1'], ['C1', 'H', 'W']].forEach(([c, inner, outer], i) => {
+    const t = tPop + i * 0.95;
+    popS(t, top, c);
+    pushS(t + 0.3, i, inner);
+    top = pushS(t + 0.55, i + 1, outer);
+  });
+  const sNote = tag(L, '先压 inner · 再压 outer → outer 先出栈', C.upd, 90, 890, { fs: 18 });
+  show(kw('o03e', '先压 inner'), sNote);
+  // leaves pop off top-first (W H G D A = writing order) into the flat Element vector
+  const tEmit = Math.max(tPop + 4.0, kw('o03e', '摊平') - 0.3);
+  hide(tEmit - 0.35, treeAll);
+  ['W', 'H', 'G', 'D', 'A'].forEach((key, i) => {
+    const t = tEmit + i * 0.32;
+    tl.to(leafS[key], { left: ex + i * (ew + egap), top: descY, width: ew, height: 78, duration: 0.55, ease: 'power3.inOut' }, t);
+    sfx(t, 'tick', 0.3);
+  });
+  const tFlat = tEmit + 4 * 0.32 + 0.6;
+  show(tFlat - 0.3, descLbl, { dy: 0 });
+  tl.to(oldDesc, { opacity: 1, duration: 0.01 }, tFlat);
+  tl.set(Object.values(leafS), { opacity: 0 }, tFlat + 0.02);
+  sfx(tFlat, 'pop', 0.35);
+
+  // o03f: written earlier = outer, wraps everything after it
+  const tF = vs('o03f');
+  hide(tF - 0.1, [stk, sNote]);
+  const nest = SH.map((t, i) => {
+    const r = div(L, 'ring', 600 + i * 40, 600 + i * 34, `<span>${t}</span>`, 950 - i * 80, 300 - i * 64);
+    r.style.setProperty('--c', COLS[i]);
+    return r;
+  });
+  nest.forEach((r, i) => pop(kw('o03f', '写在前面') + i * 0.18, r, { s: 0.94, sfx: i ? false : 'pop', g: 0.35 }));
+  tl.fromTo(nest[0], { boxShadow: 'inset 0 0 0 3px var(--c)' }, { boxShadow: `inset 0 0 0 5px ${C.a1}, 0 0 36px rgba(94,234,212,.3)`, duration: 0.35, ...IR }, kw('o03f', '包住'));
+  const wrapT = tag(L, '写在前面 = 在外层 · 顺序就是含义', C.keep, 600, 918, { fs: 22 });
+  show(kw('o03f', '顺序有意义'), wrapT, { sfx: 'ding', g: 0.35 });
+  const tBack = vs('o04') - 0.35;
+  hide(tBack, [...nest, wrapT]);
+  show(tBack, [P.el, code.el], { dy: 0 });
+
   // ---- o04: persistent Node chain ----
   const t4 = vs('o04');
   const nodeLbl = div(L, 'lbl', ex, nodeY - 40, 'Modifier.Node 链 · 挂在 LayoutNode P 上，持久存在');
@@ -107,7 +257,7 @@ Modifier
   const t9 = kw('o09', '内边距');
   cmpAt(t9, 4);
   verdict(t9 + 0.5, 4, '同类型 → update', C.upd);
-  swap(kw('o09', '12'), nodes[4], 'A<small>PaddingNode · 20dp</small>', { color: C.upd });
+  swap(kw('o09', '12'), nodes[4], 'A<small>Padding · 20dp</small>', { color: C.upd });
   // o10: summary
   const t10 = vs('o10');
   hide(t10, cmpBar);

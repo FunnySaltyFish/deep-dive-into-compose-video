@@ -1,6 +1,7 @@
 {
   "voice": "白桦",
   "style": "技术科普视频的旁白。语气自然亲切，带一点好奇心，语速适中偏快，吐字清晰，不要拖腔。",
+  "tail": 3.0,
   "cues": [
     { "id": "c01", "gap": 0.9, "text": "这是一个再普通不过的 Compose 计数器。" },
     { "id": "c02", "gap": 0.3, "text": "点一下按钮，数字加一。" },
@@ -17,8 +18,7 @@
     { "id": "c13", "gap": 0.3, "text": "但卡片和卡片里的文字，还是原来那两个节点，只是内容变了。" },
     { "id": "c14", "gap": 0.4, "text": "Compose 是怎么知道，哪些该留，哪些该换的？" },
     { "id": "c15", "gap": 0.8, "text": "要回答这个问题，得先弄清楚：这一下点击，究竟是怎么传到 count 身上的。" },
-
-    { "id": "ch02", "chapter": "02", "name": "点击：事件如何找到按钮", "rail": "点击", "hold": 2.6 },
+    { "id": "ch02", "chapter": "02", "name": "点击：事件如何找到按钮", "rail": "点击", "hold": 2.6},
     { "id": "p01", "gap": 0.3, "text": "手指碰到屏幕，Android 系统把触摸事件交给窗口里的 View。" },
     { "id": "p02", "gap": 0.6, "text": "可整个 Compose 界面，其实只有一个 View，叫 AndroidComposeView。按钮、卡片、文字，都不是 View。" },
     { "id": "p03", "gap": 0.6, "text": "它在 dispatchTouchEvent 里，把 MotionEvent 转换成 Compose 自己的指针事件，交给 PointerInputEventProcessor。" },
@@ -29,8 +29,7 @@
     { "id": "p08", "gap": 0.5, "text": "事件派发分三轮：Initial 从父到子，Main 从子到父，Final 再从父到子。ClickableNode 在 Main 这一轮处理。" },
     { "id": "p09", "gap": 0.4, "text": "按下时，它消费事件，记住按下的位置；抬起时，确认这是一次有效点击，调用 performClick，最后执行 onClick。" },
     { "id": "p10", "gap": 0.8, "text": "而这个 onClick，正是我们传进去的 increment。" },
-
-    { "id": "ch03", "chapter": "03", "name": "状态：count 从 0 变成 1", "rail": "状态", "hold": 2.6 },
+    { "id": "ch03", "chapter": "03", "name": "状态：count 从 0 变成 1", "rail": "状态", "hold": 2.6},
     { "id": "s01", "gap": 0.3, "text": "increment 里只有一句：count.intValue 加一。" },
     { "id": "s02", "gap": 0.5, "text": "注意，它捕获的是 count 这个状态对象，而不是第一次组合时读到的那个数字 n。" },
     { "id": "s03", "gap": 0.4, "text": "count 的真实类型是 SnapshotMutableIntStateImpl。对象本身一直是同一个，值存放在它挂着的 StateRecord 里。" },
@@ -42,8 +41,7 @@
     { "id": "s09", "gap": 0.3, "text": "Compose 把这次读取，记在当前的重组作用域名下。这个作用域叫 RecomposeScope，对应的就是 Counter 的函数体。" },
     { "id": "s10", "gap": 0.4, "text": "于是有了一条记录：count 被 Counter 的作用域读过。" },
     { "id": "s11", "gap": 0.8, "text": "而下面的卡片和文字，收到的只是普通的数字和字符串，它们并没有直接读 count。依赖只登记在 Counter 身上。" },
-
-    { "id": "ch04", "chapter": "04", "name": "调度：等到下一帧", "rail": "调度", "hold": 2.6 },
+    { "id": "ch04", "chapter": "04", "name": "调度：等到下一帧", "rail": "调度", "hold": 2.6},
     { "id": "d01", "gap": 0.4, "text": "写入发生了，谁来通知 Counter？" },
     { "id": "d02", "gap": 0.4, "text": "在 Android 上，GlobalSnapshotManager 注册了一个全局写入观察者。第一次写入，会往一个容量为一的通道里发个信号。" },
     { "id": "d03", "gap": 0.5, "text": "主线程上的协程收到信号，调用 sendApplyNotifications，把改过的状态一次性发出去。连续写很多次，也只合并成一次通知。" },
@@ -53,8 +51,7 @@
     { "id": "d07", "gap": 0.3, "text": "Recomposer 发现有活要干，就通过帧时钟，向 Choreographer 预约下一帧。" },
     { "id": "d08", "gap": 0.4, "text": "它不会每隔十六毫秒扫描一遍所有组件。没有失效的作用域，就什么也不做。" },
     { "id": "d09", "gap": 0.8, "text": "下一帧到来，Recomposer 开启一个可变快照，在里面重新执行失效的作用域。这，就是重组。" },
-
-    { "id": "ch05", "chapter": "05", "name": "重组：Counter 再执行一遍", "rail": "重组", "hold": 2.6 },
+    { "id": "ch05", "chapter": "05", "name": "重组：Counter 再执行一遍", "rail": "重组", "hold": 2.6},
     { "id": "r01", "gap": 0.5, "text": "重新执行 Counter，听起来很简单。可第二次执行时，remember 凭什么能拿回同一个 count，而不是新建一个？" },
     { "id": "r02", "gap": 0.3, "text": "答案藏在编译器里。Compose 编译器会改写每个 Composable 函数，给它加上一个参数：Composer。" },
     { "id": "r03", "gap": 0.5, "text": "函数体被包进 startRestartGroup 和 endRestartGroup 之间，remember 则变成了向 Composer 读写缓存。" },
@@ -67,8 +64,7 @@
     { "id": "r10", "gap": 0.3, "text": "这一次读到 n 等于 1，even 变成了 false。" },
     { "id": "r11", "gap": 0.4, "text": "increment 用 count 作为 key，key 没变，同样命中缓存，还是原来那个回调。" },
     { "id": "r12", "gap": 0.8, "text": "remember 能工作，靠的就是调用位置。在 Compose 里，代码的位置本身，就是一种身份。" },
-
-    { "id": "ch06", "chapter": "06", "name": "SlotTable：一张扁平的表", "rail": "SlotTable", "hold": 2.6 },
+    { "id": "ch06", "chapter": "06", "name": "SlotTable：一张扁平的表", "rail": "SlotTable", "hold": 2.6},
     { "id": "t01", "gap": 0.3, "text": "SlotTable 逻辑上像一棵树，但在内存里，它是两个扁平数组。" },
     { "id": "t02", "gap": 0.3, "text": "groups 是一个 IntArray，每个 group 固定占五个整数：key、标志位、父 group、大小、数据位置。" },
     { "id": "t03", "gap": 0.5, "text": "slots 是一个对象数组，按顺序存放每个 group 的数据。" },
@@ -78,8 +74,7 @@
     { "id": "t07", "gap": 0.5, "text": "这张表是教学用的精简版，省略了编译器生成的很多包装 group，但字段格式和计数规则，与源码一致。" },
     { "id": "t08", "gap": 0.3, "text": "为什么用扁平数组？因为组合基本是从头到尾顺序读写，连续的内存最快。" },
     { "id": "t09", "gap": 0.8, "text": "需要插入和删除时，数组里会留一段空隙，叫 gap。就像文本编辑器的光标，在哪里修改，就把空隙移到哪里。" },
-
-    { "id": "ch07", "chapter": "07", "name": "比较：哪些留下，哪些替换", "rail": "比较", "hold": 2.6 },
+    { "id": "ch07", "chapter": "07", "name": "比较：哪些留下，哪些替换", "rail": "比较", "hold": 2.6},
     { "id": "m01", "gap": 0.3, "text": "现在回到最初的问题：Compose 怎么判断，哪些节点该留，哪些该换？" },
     { "id": "m02", "gap": 0.5, "text": "答案就是边执行边对照旧表：同一个位置、同一个 key，就是同一个东西。" },
     { "id": "m03", "gap": 0.3, "text": "先看卡片。它被包在 ReusableContent 里，参数 even 就是它的 key。" },
@@ -92,8 +87,7 @@
     { "id": "m10", "gap": 0.6, "text": "E 和 O1 虽然都是 BasicText，但它们来自不同的调用位置，Compose 不会拿 E 去冒充 O1。" },
     { "id": "m11", "gap": 0.3, "text": "最后是 IncrementControl。它收到的 increment 没变，满足跳过条件，整个函数体可以跳过。" },
     { "id": "m12", "gap": 0.8, "text": "不过，跳过组合不代表它不会动。上面多了一行字，它的位置等会儿还得往下挪。" },
-
-    { "id": "ch08", "chapter": "08", "name": "应用：真正动手改树", "rail": "应用", "hold": 2.6 },
+    { "id": "ch08", "chapter": "08", "name": "应用：真正动手改树", "rail": "应用", "hold": 2.6},
     { "id": "a01", "gap": 0.3, "text": "有意思的是，重组过程中，Composer 并没有直接去改 UI 树。" },
     { "id": "a02", "gap": 0.3, "text": "它只是把要做的修改，记进一份清单，叫 ChangeList。" },
     { "id": "a03", "gap": 0.5, "text": "清单里写着：复用卡片节点，更新它的属性，移除偶数分支，插入奇数分支的新节点。" },
@@ -107,11 +101,16 @@
     { "id": "a11", "gap": 0.5, "text": "注意，Column 的孩子数始终是 3。奇数分支虽然有三个节点，在外层 Column 眼里，只占一个位置。" },
     { "id": "a12", "gap": 0.3, "text": "与此同时，SlotTable 也被正式改写：偶数分支的 group 删掉，奇数分支的 group 插进来，后面按钮的数据整体后移。" },
     { "id": "a13", "gap": 0.8, "text": "按钮的行号变了，可它引用的还是原来那个节点。行号、地址、对象身份，是三回事。" },
-
-    { "id": "ch09", "chapter": "09", "name": "Modifier：描述与节点链", "rail": "Modifier", "hold": 2.6 },
+    { "id": "ch09", "chapter": "09", "name": "Modifier：描述与节点链", "rail": "Modifier", "hold": 2.6},
     { "id": "o01", "gap": 0.3, "text": "节点留下了，可卡片的样子明明变了：背景换成了边框，内边距也变了。这是怎么改的？" },
     { "id": "o02", "gap": 0.3, "text": "看卡片的修饰符：宽度、高度、图层、装饰、内边距。" },
     { "id": "o03", "gap": 0.3, "text": "每次执行，这串 Modifier 都会重新创建。但它只是一份描述，非常轻量。" },
+    { "id": "o03a", "gap": 0.3, "text": "先看这串描述是怎么拼起来的。链式写法里的每一个点，背后都是一次 then。" },
+    { "id": "o03b", "gap": 0.3, "text": "then 不会把元素追加进列表，而是新建一个 CombinedModifier：outer 是前面已有的整条链，inner 是新接上的这一个。" },
+    { "id": "o03c", "gap": 0.4, "text": "五个修饰符串下来，得到的不是数组，而是一棵向左倾斜的二叉树。最外层的 inner 是 padding，越往左下，越接近最早写下的 width。" },
+    { "id": "o03d", "gap": 0.4, "text": "遍历时，foldIn 先走完 outer，再走 inner。于是从左往右，顺序正好和书写顺序一致：宽度、高度、图层、装饰、内边距。foldOut 则反过来，从内往外。" },
+    { "id": "o03e", "gap": 0.4, "text": "NodeChain 用的是更直接的办法：一个显式的栈。弹出一个 CombinedModifier，就先压 inner，再压 outer，让 outer 先出栈。树就这样被摊平成一个数组。" },
+    { "id": "o03f", "gap": 0.5, "text": "写在前面的修饰符在外层，包住后面所有的修饰符。这就是修饰符顺序有意义的原因。" },
     { "id": "o04", "gap": 0.5, "text": "真正干活的，是挂在 LayoutNode 上的一条 Modifier.Node 链。每个描述元素，对应链上一个持久存在的节点。" },
     { "id": "o05", "gap": 0.3, "text": "新描述到来时，NodeChain 逐个比较新旧元素。" },
     { "id": "o06", "gap": 0.3, "text": "宽度和高度完全相等，节点原样保留。" },
@@ -122,8 +121,7 @@
     { "id": "o11", "gap": 0.6, "text": "还有一个细节：因为这是回收复用，在比较之前，onReuse 已经先把旧链上的节点，重置并重新挂载了一遍。" },
     { "id": "o12", "gap": 0.3, "text": "这条链还决定了测量的结构：每个带布局能力的节点，都会包上一层 coordinator，像洋葱一样层层嵌套。" },
     { "id": "o13", "gap": 0.8, "text": "而图层，不是挂在 graphicsLayer 自己那一层，而是挂在它里面的那一层，也就是 padding 的 coordinator 上。" },
-
-    { "id": "ch10", "chapter": "10", "name": "测量与放置", "rail": "测量", "hold": 2.6 },
+    { "id": "ch10", "chapter": "10", "name": "测量与放置", "rail": "测量", "hold": 2.6},
     { "id": "l01", "gap": 0.3, "text": "内边距变了，分支多了一行，布局必须重新计算。" },
     { "id": "l02", "gap": 0.5, "text": "这些修改会给节点打上“需要重新测量”的标记。MeasureAndLayoutDelegate 把它们收集起来，在绘制之前统一处理。" },
     { "id": "l03", "gap": 0.3, "text": "测量从外往内传递约束。宽度和高度修饰符，把卡片固定成 200×80。", "tts": "测量从外往内传递约束。宽度和高度修饰符，把卡片固定成两百乘八十。" },
@@ -134,8 +132,7 @@
     { "id": "l08", "gap": 0.3, "text": "于是在放置阶段，Column 把按钮往下挪。按钮的组合被跳过了，但它的位置照样更新。" },
     { "id": "l09", "gap": 0.3, "text": "卡片内部，文字的偏移也从 12 变成了 20。" },
     { "id": "l10", "gap": 0.8, "text": "而没有变化、约束也没变的子节点，测量时可以直接用缓存，不必从头再算。" },
-
-    { "id": "ch11", "chapter": "11", "name": "图层与绘制", "rail": "绘制", "hold": 2.6 },
+    { "id": "ch11", "chapter": "11", "name": "图层与绘制", "rail": "绘制", "hold": 2.6},
     { "id": "g01", "gap": 0.3, "text": "最后一步：把新样子画出来。" },
     { "id": "g02", "gap": 0.3, "text": "graphicsLayer 的参数更新了：透明度 0.65，缩放 0.9。" },
     { "id": "g03", "gap": 0.3, "text": "这些属性直接设到图层上。如果只改了这些属性，连图层里的内容都不用重画。" },
@@ -146,8 +143,7 @@
     { "id": "g08", "gap": 0.4, "text": "透明度、缩放这些属性，也设在 RenderNode 上，由渲染系统在合成时处理，不需要重新执行我们的绘制代码。" },
     { "id": "g09", "gap": 0.4, "text": "最后，Android 的渲染线程把这些 RenderNode 交给 GPU，合成之后提交到屏幕。" },
     { "id": "g10", "gap": 0.8, "text": "到这里，屏幕上终于出现了 Odd 1。" },
-
-    { "id": "ch12", "chapter": "12", "name": "回顾：一次点击的全程", "rail": "回顾", "hold": 2.6 },
+    { "id": "ch12", "chapter": "12", "name": "回顾：一次点击的全程", "rail": "回顾", "hold": 2.6},
     { "id": "z01", "gap": 0.3, "text": "回头看这一下点击，一共走过了这些步骤。" },
     { "id": "z02", "gap": 0.2, "text": "触摸事件命中按钮，ClickableNode 调用 increment。" },
     { "id": "z03", "gap": 0.2, "text": "状态写入，通知 Recomposer，Counter 的作用域失效。" },
@@ -159,7 +155,9 @@
     { "id": "z09", "gap": 0.5, "text": "那么这次读取，登记在图层参数的观察范围里。count 变化时，只需要更新图层属性，重组和测量都可以跳过。" },
     { "id": "z10", "gap": 0.6, "text": "状态不知道自己该触发什么。读取发生在哪个阶段，就决定了哪个阶段要重新工作。" },
     { "id": "z11", "gap": 0.4, "text": "这就是 Compose 一次点击背后的完整旅程。" },
-    { "id": "z12", "gap": 0.6, "text": "下次你再写下一个 remember，不妨想一想，它住在那张表里的哪一格。" }
-  ],
-  "tail": 3.0
+    { "id": "z12", "gap": 1.4, "text": "下次你再写下一个 remember，不妨想一想，它住在那张表里的哪一格。" },
+    { "id": "e01", "gap": 0.3, "text": "彩蛋时间。前面讲的 gap buffer 有一个代价：修改的位置离 gap 越远，要搬动的数据就越多；列表重排时，移动一段 group，也意味着整段复制数组。" },
+    { "id": "e02", "gap": 0.3, "text": "所以新版本的 Compose，已经加入了另一套 SlotTable 实现，叫 LinkBuffer。group 之间用显式的链接组织起来，删除、移动、重排时，改的主要是链接，而不是大段复制。" },
+    { "id": "e03", "gap": 0.5, "text": "在 1.12.1 里它默认还没有开启，所以这期讲的都是 gap buffer 版本。新的 SlotTable 为什么会出现，它和现在的到底有什么不一样，我们下一期接着讲。" }
+  ]
 }

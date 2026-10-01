@@ -93,4 +93,72 @@ Modifier.graphicsLayer {
   tl.set(row, { opacity: 0 }, t0);
   tl.fromTo(row, { opacity: 0 }, { opacity: 0.6, duration: 0.2, stagger: { each: 0.04, from: 'center' }, ...IR }, kw('z12', '那张表里'));
   tl.to(cell, { top: 705, scale: 0.5, duration: 0.8, ease: 'power3.inOut' }, kw('z12', '哪一格') + 0.6);
+
+  // ---- e01..e03: easter egg — gap buffer cost, LinkBuffer, next episode ----
+  const tE1 = vs('e01') - 0.3;
+  hide(tE1, [end, cell, ...row]);
+  const egg = tag(L, '彩蛋 · Easter egg', C.upd, 960, 150, { fs: 26, center: true });
+  pop(kw('e01', '彩蛋'), egg, { s: 0.6, sfx: 'ding', g: 0.5 });
+  // gap buffer: editing far from the gap shifts everything in between
+  const GX0 = 300, CW = 33, NC = 40, GY = 330;
+  const gLbl = div(L, 'lbl m', GX0, GY - 44, 'GapBuffer · groups 数组');
+  const gStrip = div(L, 'strip', GX0, GY, '', NC * (CW + 2), 64);
+  const gc = [];
+  for (let i = 0; i < NC; i++) { const c = div(gStrip, 'ic', i * (CW + 2), 0, '', CW, 64); c.style.setProperty('--c', i >= 30 && i < 36 ? C.dim : C.a1); gc.push(c); }
+  for (let i = 30; i < 36; i++) tl.set(gc[i], { opacity: 0.15 }, t0);
+  const tG = kw('e01', 'gap buffer');
+  show(tG, [gLbl, gStrip], { dy: 0 });
+  const gapT = tag(L, 'gap', C.upd, GX0 + 30 * (CW + 2) + 70, GY + 76, { fs: 20 });
+  show(tG + 0.2, gapT);
+  const editAt = 4;
+  const caret = div(L, 'caret', GX0 + editAt * (CW + 2) - 3, GY - 12, '', 4, 88);
+  const tFar = kw('e01', '离 gap 越远');
+  show(tFar, caret, { dy: 0, sfx: 'tick' });
+  // cells 4..29 slide right by 6 to bring the gap to the caret
+  const shiftT = kw('e01', '搬动');
+  for (let i = editAt; i < 30; i++) tl.to(gc[i], { x: 6 * (CW + 2), backgroundColor: 'rgba(251,113,133,.35)', duration: 0.9, ease: 'power3.inOut' }, shiftT - 0.3);
+  for (let i = 30; i < 36; i++) tl.to(gc[i], { x: -(30 - editAt) * (CW + 2), duration: 0.9, ease: 'power3.inOut' }, shiftT - 0.3);
+  tl.to(gapT, { left: GX0 + editAt * (CW + 2) + 70, duration: 0.9, ease: 'power3.inOut' }, shiftT - 0.3);
+  sfx(shiftT - 0.3, 'whoosh', 0.5);
+  const costT = tag(L, '26 格整体后移', C.gone, GX0 + 14 * (CW + 2), GY + 76, { fs: 20 });
+  show(shiftT + 0.5, costT, { sfx: 'remove', g: 0.4 });
+  const moveT = kw('e01', '移动一段 group');
+  const seg = [0, 1, 2].map((k) => gc[editAt + 6 + k]); // a run of groups being moved
+  tl.fromTo(seg, { boxShadow: 'inset 0 0 0 1.5px transparent' }, { boxShadow: `inset 0 0 0 3px ${C.upd}`, duration: 0.25, ...IR }, moveT);
+  const copyT = tag(L, '重排 = 整段复制', C.gone, GX0 + 30 * (CW + 2), GY - 48, { fs: 20 });
+  show(kw('e01', '整段复制'), copyT, { sfx: 'tick' });
+
+  // LinkBuffer: groups linked explicitly; a move rewires links
+  const LY = 640;
+  const lLbl = div(L, 'lbl m', GX0, LY - 60, 'LinkBuffer · 显式链接');
+  const LN = ['Column', 'Card', 'Branch', 'Button', 'Text'];
+  const LXs = [300, 560, 820, 1080, 1340];
+  const lnodes = LN.map((t, i) => { const b = blk(L, t, LXs[i], LY, [C.col, C.a1, C.a2, C.a3, C.a1][i], { fs: 24, w: 200, cls: 'm' }); return b; });
+  const lp = (a, b, bend = 0) => path(ov, `M${lnodes[a].bx + 200 + 6},${lnodes[a].cy} C${lnodes[a].bx + 230},${lnodes[a].cy + bend} ${lnodes[b].bx - 30},${lnodes[b].cy + bend} ${lnodes[b].bx - 12},${lnodes[b].cy}`, C.keep, { arrow: true, w: 3 });
+  const links = [lp(0, 1), lp(1, 2), lp(2, 3), lp(3, 4)];
+  const tLB = kw('e02', 'LinkBuffer');
+  show(kw('e02', '另一套'), lLbl, { dy: 0 });
+  show(tLB, lnodes, { st: 0.1, dy: 14, sfx: 'pop', g: 0.35 });
+  links.forEach((p, i) => drawIn(kw('e02', '显式的链接') + i * 0.12, p, 0.3));
+  // move "Branch" after "Button": only links change
+  const tRe = kw('e02', '改的主要是链接');
+  [links[1], links[2], links[3]].forEach((p) => tl.to(p, { opacity: 0, duration: 0.25 }, tRe - 0.3));
+  tl.to(lnodes[2], { y: 120, duration: 0.6, ease: 'power3.inOut' }, tRe - 0.3);
+  sfx(tRe - 0.3, 'swoosh', 0.4);
+  const nl1 = path(ov, `M${LXs[1] + 206},${LY + 30} L${LXs[3] - 12},${LY + 30}`, C.upd, { arrow: true, w: 3 });
+  const nl2 = path(ov, `M${LXs[3] + 100},${LY + 66} C${LXs[3] + 100},${LY + 130} ${LXs[2] + 260},${LY + 150} ${LXs[2] + 212},${LY + 150}`, C.upd, { arrow: true, w: 3 });
+  const nl3 = path(ov, `M${LXs[2] + 100},${LY + 186} C${LXs[2] + 100},${LY + 240} ${LXs[4] + 100},${LY + 240} ${LXs[4] + 100},${LY + 72}`, C.upd, { arrow: true, w: 3 });
+  [nl1, nl2, nl3].forEach((p, i) => drawIn(tRe + 0.3 + i * 0.2, p, 0.35));
+  const onlyT = tag(L, '只改 3 个链接 · 数据不搬家', C.keep, 1300, LY + 250, { fs: 20 });
+  show(kw('e02', '而不是大段复制'), onlyT, { sfx: 'ding', g: 0.35 });
+
+  // e03: default off in 1.12.1, next episode
+  const tE3 = vs('e03') - 0.2;
+  const flag = codeBox(L, 'ComposeRuntimeFlags.isLinkBufferComposerEnabled = false  // 1.12.1 默认', { x: 330, y: 160, w: 1260, fs: 22, bar: false, ln: false });
+  hide(tE3, [egg]);
+  show(kw('e03', '默认还没有开启'), flag.el, { dy: -10, sfx: 'tick' });
+  const tNext = kw('e03', '新的 SlotTable');
+  hide(tNext - 0.3, [gLbl, gStrip, gapT, caret, costT, copyT, lLbl, ...lnodes, links[0], nl1, nl2, nl3, onlyT, flag.el]);
+  const nextC = div(L, 'big', 0, 330, '<h1>下一期 · <em>LinkBuffer</em></h1><p>新的 SlotTable 为什么出现 · 和 gap buffer 有什么不同</p>');
+  show(tNext, nextC, { s: 0.94, sfx: 'chapter', g: 0.6 });
 });
