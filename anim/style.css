@@ -1,0 +1,173 @@
+:root {
+  --bg0: #0b0f17;
+  --bg1: #111827;
+  --ink: #e6edf7;
+  --ink2: #9aa7bd;
+  --ink3: #5b6780;
+  --line: #273246;
+  --keep: #5eead4;    /* 保留的同一对象 */
+  --new: #86efac;     /* 新建 */
+  --gone: #fb7185;    /* 移除 */
+  --upd: #fbbf24;     /* 内容更新 */
+  --a1: #7dd3fc;      /* 卡片 */
+  --a2: #c4b5fd;      /* 分支 */
+  --a3: #fdba74;      /* 按钮 */
+  --sans: "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --mono: "Cascadia Code", "JetBrains Mono", Consolas, "Noto Sans SC", "Microsoft YaHei", monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+#stage {
+  position: absolute; left: 0; top: 0; width: 1920px; height: 1080px;
+  transform-origin: 0 0; overflow: hidden;
+  font-family: var(--sans); color: var(--ink);
+  background: radial-gradient(1400px 900px at 60% 35%, var(--bg1), var(--bg0));
+}
+#bg, #world, #hud, #fade { position: absolute; inset: 0; }
+#grid {
+  position: absolute; inset: -80px;
+  background-image: radial-gradient(circle, rgba(148,163,184,.13) 1.4px, transparent 1.6px);
+  background-size: 40px 40px;
+}
+#glow {
+  position: absolute; width: 1100px; height: 1100px; left: 400px; top: -200px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(94,234,212,.08), transparent 65%);
+}
+#world { transform-origin: 0 0; }
+#fade { background: #000; opacity: 1; pointer-events: none; }
+
+/* ---------- HUD ---------- */
+#chapter {
+  position: absolute; left: 64px; top: 44px; display: flex; gap: 14px; align-items: baseline;
+  opacity: 0; font-size: 22px; letter-spacing: .04em;
+}
+#chapter .num { font-family: var(--mono); color: var(--keep); font-weight: 600; }
+#chapter .name { color: var(--ink2); }
+
+#subtitle {
+  position: absolute; left: 0; right: 0; bottom: 46px; text-align: center; pointer-events: none;
+}
+#subtitle span {
+  display: inline-block; padding: 10px 30px 12px; border-radius: 14px;
+  background: rgba(5, 8, 14, .72); font-size: 40px; font-weight: 500; letter-spacing: .02em;
+  color: #f8fafc; text-shadow: 0 2px 6px rgba(0,0,0,.5);
+}
+#subtitle span:empty { display: none; }
+
+/* ---------- Phone ---------- */
+.phone {
+  position: absolute; left: 0; top: 0; width: 500px; height: 780px; border-radius: 64px;
+  background: linear-gradient(145deg, #2a3243, #151a24);
+  box-shadow: 0 40px 80px rgba(0,0,0,.55), inset 0 0 0 2px #3a4458;
+  transform-origin: 0 0; opacity: 0;
+}
+.phone .screen {
+  position: absolute; left: 14px; top: 14px; right: 14px; bottom: 14px; border-radius: 50px;
+  background: #ffffff; overflow: hidden;
+}
+.phone .status {
+  position: absolute; left: 0; right: 0; top: 0; height: 48px; padding: 14px 36px 0;
+  display: flex; justify-content: space-between; font: 600 19px var(--sans); color: #111;
+}
+.phone .status i { display: inline-block; width: 26px; height: 12px; border-radius: 3px; border: 2px solid #111; margin-left: 6px; }
+.phone .content { position: absolute; left: 0; top: 48px; right: 0; bottom: 0; }
+.phone .tile { position: absolute; overflow: hidden; }
+.phone .tileBg, .phone .tileBorder { position: absolute; inset: 0; border-radius: inherit; }
+.phone .tileBg { background: #D8F3DC; }
+.phone .tileBorder { border: 3.8px solid #3B82F6; opacity: 0; }
+.phone .tileText { position: absolute; white-space: nowrap; color: #000; line-height: 1.2; }
+.phone .txt { position: absolute; white-space: nowrap; color: #000; }
+.phone .btn { position: absolute; background: #E5E7EB; }
+.phone .ol {
+  position: absolute; border-radius: 8px; opacity: 0;
+  --d: color-mix(in srgb, var(--c, #7dd3fc) 70%, #0b1220);
+  border: 4px solid var(--d);
+  background: color-mix(in srgb, var(--c) 14%, transparent);
+}
+.phone .ol b {
+  position: absolute; right: -4px; top: -4px; font: 600 18px var(--sans); color: #fff;
+  background: var(--d); padding: 2px 10px; border-radius: 0 8px 0 8px; white-space: nowrap;
+}
+
+.plabel {
+  position: absolute; font-size: 30px; font-weight: 600; color: var(--ink2); letter-spacing: .06em;
+  transform: translateX(-50%); white-space: nowrap; opacity: 0;
+}
+
+/* ---------- Finger ---------- */
+.finger { position: absolute; left: 0; top: 0; width: 0; height: 0; opacity: 0; }
+.finger .dot {
+  position: absolute; left: -32px; top: -32px; width: 64px; height: 64px; border-radius: 50%;
+  background: rgba(255,255,255,.85); box-shadow: 0 6px 20px rgba(0,0,0,.35), 0 0 0 3px rgba(15,23,42,.35);
+}
+.finger .ring {
+  position: absolute; left: -32px; top: -32px; width: 64px; height: 64px; border-radius: 50%;
+  border: 4px solid #fff; opacity: 0;
+}
+
+/* ---------- Callouts ---------- */
+.callout {
+  position: absolute; display: flex; align-items: center; gap: 14px; opacity: 0; white-space: nowrap;
+  font-size: 30px; font-weight: 500;
+}
+.callout .k { font: 600 20px var(--mono); color: #0b0f17; background: var(--c); border-radius: 8px; padding: 3px 10px; }
+.callout .v { color: var(--ink); }
+.callout .v em { font-style: normal; color: var(--c); font-family: var(--mono); }
+svg.overlay { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; pointer-events: none; }
+
+/* ---------- Code panel ---------- */
+.code {
+  position: absolute; left: 0; top: 0; width: 940px; padding: 56px 0 28px; border-radius: 22px;
+  background: rgba(13, 18, 28, .92); box-shadow: 0 30px 70px rgba(0,0,0,.45), inset 0 0 0 1.5px var(--line);
+  font: 22px/31px var(--mono); color: #d6deeb; transform-origin: 0 0; opacity: 0;
+}
+.code .bar { position: absolute; left: 24px; top: 20px; display: flex; gap: 9px; align-items: center; }
+.code .bar i { width: 13px; height: 13px; border-radius: 50%; background: #3a4458; display: block; }
+.code .bar span { margin-left: 16px; font: 17px var(--mono); color: var(--ink3); }
+.code .ln { position: relative; padding-left: 78px; white-space: pre; height: 31px; }
+.code .ln::before { content: attr(data-n); position: absolute; left: 0; width: 52px; text-align: right; color: #3b4760; }
+.code .hl { position: absolute; left: 10px; right: 10px; border-radius: 8px; opacity: 0;
+  background: color-mix(in srgb, var(--c) 14%, transparent); border-left: 4px solid var(--c); }
+.code .kw { color: #c792ea; } .code .st { color: #c3e88d; } .code .nu { color: #f78c6c; }
+.code .an { color: #ffcb6b; } .code .fn { color: #82aaff; } .code .pr { color: #89ddff; }
+.code .fold { color: var(--ink3); background: #1e2636; border-radius: 5px; padding: 0 6px; }
+
+/* ---------- Tree ---------- */
+.node {
+  position: absolute; width: 240px; height: 100px; border-radius: 16px; transform-origin: 0 0;
+  background: #141b28; box-shadow: 0 12px 30px rgba(0,0,0,.4), inset 0 0 0 2.5px var(--c, #334155);
+  padding: 14px 18px 0; opacity: 0;
+}
+.node .ty { font: 600 25px var(--mono); color: var(--c); }
+.node .de { position: relative; font: 21px var(--mono); color: var(--ink2); margin-top: 8px; white-space: nowrap; height: 28px; }
+.node .de span { position: absolute; left: 0; top: 0; }
+.node .badge {
+  position: absolute; right: -14px; top: -18px; font: 600 19px var(--sans); padding: 3px 12px; border-radius: 10px;
+  color: #0b0f17; background: var(--bc, #5eead4); opacity: 0; white-space: nowrap;
+}
+.node .glow { position: absolute; inset: -6px; border-radius: 18px; border: 3px solid var(--gc, #fbbf24); opacity: 0; }
+.chip {
+  position: absolute; padding: 8px 18px; border-radius: 12px; font: 600 26px var(--mono);
+  color: #0b0f17; background: var(--c, #5eead4); opacity: 0; white-space: nowrap;
+}
+
+/* ---------- Title / chain ---------- */
+.big { position: absolute; left: 0; right: 0; text-align: center; opacity: 0; }
+.big h1 { font-size: 84px; font-weight: 800; letter-spacing: .04em; }
+.big h1 em { font-style: normal; color: var(--keep); }
+.big p { margin-top: 18px; font-size: 30px; color: var(--ink2); letter-spacing: .1em; }
+.station { position: absolute; transform: translate(-50%, -50%); text-align: center; opacity: 0; }
+.station .ic { width: 96px; height: 96px; margin: 0 auto 14px; border-radius: 26px; display: grid; place-items: center;
+  background: #172033; box-shadow: inset 0 0 0 2px var(--line); font-size: 46px; }
+.station .lb { font-size: 28px; color: var(--ink2); white-space: nowrap; }
+.blackbox {
+  position: absolute; width: 150px; height: 150px; margin: -75px 0 0 -75px; border-radius: 28px;
+  background: #05070b; box-shadow: 0 0 0 2px #334155, 0 0 60px rgba(94,234,212,.15);
+  display: grid; place-items: center; font: 800 76px var(--sans); color: var(--keep); opacity: 0;
+}
+.piece {
+  position: absolute; width: 96px; height: 96px; margin: -48px 0 0 -48px; border-radius: 20px;
+  background: #0f1624; box-shadow: inset 0 0 0 2px #2b3a52; display: grid; place-items: center;
+  font: 700 38px var(--sans); color: #3f5272; opacity: 0;
+}
+.qmark { position: absolute; font: 800 120px var(--sans); color: var(--upd); opacity: 0; transform: translate(-50%, -50%); }

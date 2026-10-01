@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>How Composable Works</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="stage">
+  <div id="bg"><div id="grid"></div><div id="glow"></div></div>
+  <div id="world"></div>
+  <div id="hud">
+    <div id="chapter"><span class="num"></span><span class="name"></span></div>
+  </div>
+  <div id="subtitle"><span></span></div>
+  <div id="fade"></div>
+</div>
+<script src="../node_modules/gsap/dist/gsap.min.js"></script>
+<script src="../build/timing.js"></script>
+<script src="components.js"></script>
+<script src="scene.js"></script>
+</body>
+</html>
