@@ -1,7 +1,7 @@
 """Synthesize SFX + background music and mix them with the narration.
 
-Usage: python tools/mix.py  -> build/mix.wav
-Inputs: build/timing.json (narration placement), build/sfx.json (cue list dumped by render.py).
+Usage: python tools/mix.py --video compose-click --lang en-US
+Reads timing.json, audio/ and sfx.json in the language build directory; writes mix.wav there.
 All sounds are generated procedurally here, so there are no licensing questions.
 """
 import json
@@ -10,7 +10,7 @@ from pathlib import Path
 
 import numpy as np
 
-ROOT = Path(__file__).resolve().parent.parent
+from project import ROOT, BUILD, AUDIO
 SR = 48000
 rng = np.random.default_rng(7)
 
@@ -151,13 +151,13 @@ def read_wav(p):
 
 
 def main():
-    timing = json.loads((ROOT / "build" / "timing.json").read_text(encoding="utf-8"))
-    sfx_list = json.loads((ROOT / "build" / "sfx.json").read_text(encoding="utf-8"))
+    timing = json.loads((BUILD / "timing.json").read_text(encoding="utf-8"))
+    sfx_list = json.loads((BUILD / "sfx.json").read_text(encoding="utf-8"))
     dur = timing["duration"]
     n = int(dur * SR) + SR
     voice = np.zeros(n)
     for c in timing["cues"]:
-        a = read_wav(ROOT / "build" / "audio" / c["file"])
+        a = read_wav(AUDIO / c["file"])
         i = int(c["start"] * SR)
         voice[i:i + len(a)] += a[: n - i]
     voice *= 0.95
@@ -185,10 +185,10 @@ def main():
     mix = np.tanh(mix / max(peak, 1e-6) * 1.15) * 0.89
     mix = mix[: int(dur * SR)]
     st = np.stack([mix, mix], 1)
-    with wave.open(str(ROOT / "build" / "mix.wav"), "wb") as w:
+    with wave.open(str(BUILD / "mix.wav"), "wb") as w:
         w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR)
         w.writeframes((st * 32767).astype(np.int16).tobytes())
-    print(f"[mix] build/mix.wav {dur:.1f}s, {len(sfx_list)} sfx")
+    print(f"[mix] {BUILD / 'mix.wav'} {dur:.1f}s, {len(sfx_list)} sfx")
 
 
 if __name__ == "__main__":

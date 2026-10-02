@@ -1,8 +1,8 @@
 """Local studio: preview the animation with narration, click any line, re-record it, and the timeline re-aligns.
 
-Usage: python tools/studio.py [--port 8765]   ->  http://127.0.0.1:8765/studio/
-Edits go straight into script/full.json (the single source of truth); every take is kept in
-build/audio/takes.json so an older take can be restored. Binds to 127.0.0.1 only (no auth).
+Usage: python tools/studio.py --video compose-click --lang en-US [--port 8765]
+Edits go into the selected language script; takes are kept in its build/audio/takes.json.
+Binds to 127.0.0.1 only (no auth).
 """
 import argparse
 import json
@@ -11,19 +11,20 @@ import subprocess
 import sys
 import threading
 import time
+import tempfile
+import uuid
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote
+from urllib.parse import unquote, urlsplit, parse_qs
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import timing  # noqa: E402
 import tts  # noqa: E402
 
-ROOT, AUDIO = tts.ROOT, tts.AUDIO
-SCRIPT = ROOT / "script" / "full.json"
+from project import ROOT, AUDIO, SCRIPT, BUILD, CONTENT, VIDEO, LANG, selection_args
 TAKES = AUDIO / "takes.json"
-SCENES = ROOT / "anim" / "scenes"
-ALLOWED = ("/studio/", "/anim/", "/build/", "/node_modules/gsap/")
+SCENES = CONTENT / "anim" / "scenes"
+ALLOWED = ("/studio/", "/build/", "/node_modules/gsap/")
 KW = re.compile(r"""kw\(\s*'(\w+)'\s*,\s*'([^']*)'\s*(?:,\s*(\d+)\s*)?\)""")
 
 lock = threading.Lock()
@@ -84,6 +85,7 @@ def record_take(sc, tk, cue):
     lst = tk.setdefault(cue["id"], [])
     if (AUDIO / f).exists() and not any(e["file"] == f for e in lst):
         lst.append({"take": cue.get("take", 0), "text": cue["text"], "tts": cue.get("tts"), "style": cue.get("style"),
+                    "segments": cue.get("segments"), "audio": cue.get("audio"),
                     "file": f, "duration": round(tts.wav_duration(AUDIO / f), 3), "at": time.strftime("%m-%d %H:%M:%S")})
 
 
@@ -97,10 +99,18 @@ def rebuild(sc):
 def kw_problems(cid, text):
     """Animation keywords (kw(id, word, n)) that the new subtitle text would no longer contain."""
     miss = []
+    sc = read_script()
+    anchors = find(sc, cid).get('anchors', {})
+    labels = json.loads((CONTENT / 'locales' / LANG / 'labels.json').read_text(encoding='utf-8'))
     for f in sorted(SCENES.glob("*.js")):
         for m in KW.finditer(f.read_text(encoding="utf-8")):
-            if m.group(1) == cid and text.count(m.group(2)) < int(m.group(3) or 0) + 1:
-                miss.append(f"{f.name}: {m.group(2)}")
+            if m.group(1) != cid:
+                continue
+            key = re.sub(r'[\u4e00-\u9fff]+', lambda x: labels[x[0]], m.group(2))
+            key = key.replace('，', ', ').replace('。', '.').replace('：', ': ').replace('（', '(').replace('）', ')') if LANG == 'en-US' else key
+            word = anchors.get(key, key)
+            if text.lower().count(word.lower()) < int(m.group(3) or 0) + 1:
+                miss.append(f"{f.name}: {word}")
     return sorted(set(miss))
 
 
@@ -114,15 +124,24 @@ def state():
             d["spoken"] = tts.spoken_for(c)
             d["file"] = tts.audio_path(sc, c).name
         cues.append(d)
-    tm = json.loads((ROOT / "build" / "timing.json").read_text(encoding="utf-8"))
-    return {"cues": cues, "timing": tm, "takes": tk, "render": render}
+    tm = json.loads((BUILD / "timing.json").read_text(encoding="utf-8"))
+    base = '/' + BUILD.relative_to(ROOT).as_posix()
+    return {"cues": cues, "timing": tm, "takes": tk, "render": render,
+            'video': VIDEO, 'language': LANG, 'audioBase': base + '/audio/', 'animationUrl': base + '/anim/index.html'}
 
 
 # ---------- actions ----------
-FIELDS = ("text", "tts", "style", "gap", "take")
+FIELDS = ("text", "tts", "style", "gap", "take", "segments", "audio")
 
 
 def apply_edits(cue, body):
+    if cue.get('segments') and ('segments' in body or body.get('text', cue['text']).strip() != cue['text']):
+        segments = body.get('segments')
+        if not isinstance(segments, list) or len(segments) != len(cue['segments']) or any(not isinstance(s, str) or not s.strip() for s in segments):
+            raise ApiError(f"请保留 {len(cue['segments'])} 个分段，每行一段。")
+        if ''.join(segments) != body.get('text', cue['text']).strip():
+            raise ApiError('分段合起来需要与字幕一致，请一起修改。')
+        cue['segments'] = segments
     for k in ("text", "tts", "style"):
         if k in body:
             v = (body[k] or "").strip()
@@ -154,6 +173,9 @@ def do_edit(body):
     cid = body["id"]
     sc = read_script()
     cue = find(sc, cid)
+    original = dict(cue)
+    tk = read_takes()
+    record_take(sc, tk, cue)
     old_text = cue["text"]
     apply_edits(cue, body)
     if cue["text"] != old_text and not body.get("force"):
@@ -163,13 +185,14 @@ def do_edit(body):
     if body.get("newTake"):
         prev = [e["take"] for e in read_takes().get(cid, [])] + [cue.get("take", 0)]
         cue["take"] = max(prev) + 1
+    if body.get('newTake') or any(cue.get(k) != original.get(k) for k in ('text', 'tts', 'style')):
+        cue.pop('audio', None)
     if not cue.get("take"):
         cue.pop("take", None)
     tts.synth(client(), sc, cue)  # slow network call, outside the lock
     with lock:
         sc2 = read_script()
         copy_fields(cue, find(sc2, cid))
-        tk = read_takes()
         record_take(sc2, tk, find(sc2, cid))
         write_script(sc2)
         write_takes(tk)
@@ -187,6 +210,14 @@ def do_select(body):
         if not e or not (AUDIO / file).exists():
             raise ApiError("找不到这一版录音")
         cue["text"] = e["text"]
+        if e.get('segments'):
+            cue['segments'] = e['segments']
+        if cue.get('segments') and ''.join(cue['segments']) != cue['text']:
+            raise ApiError('这版录音的字幕分段不完整，请重新生成。')
+        if e.get('audio'):
+            cue['audio'] = e['audio']
+        else:
+            cue.pop('audio', None)
         for k in ("tts", "style"):
             if e.get(k):
                 cue[k] = e[k]
@@ -203,12 +234,39 @@ def do_select(body):
     return state()
 
 
+def do_upload(cid, data):
+    """Normalize an imported recording and keep the previous take selectable."""
+    guard()
+    with lock:
+        sc = read_script()
+        cue = find(sc, cid)
+        tk = read_takes()
+        record_take(sc, tk, cue)
+        with tempfile.TemporaryDirectory(dir=BUILD) as tmp:
+            src, dst = Path(tmp) / 'input', Path(tmp) / 'recording.wav'
+            src.write_bytes(data)
+            p = subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', str(src), '-vn', '-ac', '1', '-ar', '24000', '-c:a', 'pcm_s16le', str(dst)], capture_output=True)
+            if p.returncode or not dst.exists():
+                raise ApiError('无法读取这份音频，请选择 WAV、MP3 或 M4A 文件。')
+            a = timing.load(dst)
+            if not len(a) or len(a) > 24000 * 300 or not (abs(a) > 0.02).any():
+                raise ApiError('请使用有声音、且不超过 5 分钟的录音。')
+            cue['audio'] = f"{cid}_import_{uuid.uuid4().hex[:12]}.wav"
+            cue['take'] = max([e['take'] for e in tk.get(cid, [])] + [cue.get('take', 0)]) + 1
+            dst.replace(AUDIO / cue['audio'])
+        record_take(sc, tk, cue)
+        write_script(sc)
+        write_takes(tk)
+        rebuild(sc)
+    return state()
+
+
 def do_render(body):
     if render["state"] == "running":
         raise ApiError("已经在导出了")
     w = int(body.get("w", 960))
-    out = f"build/preview_full_{w}.mp4" if w != 1920 else "build/final_1080.mp4"
-    cmd = [sys.executable, "tools/render_all.py", "--w", str(w), "--jobs", str(int(body.get("jobs", 8))), "--out", out]
+    out = (BUILD / (f'preview_{w}.mp4' if w != 1920 else 'final_1080.mp4')).relative_to(ROOT).as_posix()
+    cmd = [sys.executable, "tools/render_all.py", *selection_args(), "--w", str(w), "--jobs", str(int(body.get("jobs", 8))), "--out", out]
     render.update(state="running", log="", started=time.time(), out=out)
 
     def run():
@@ -265,9 +323,15 @@ class Handler(SimpleHTTPRequestHandler):
     def do_POST(self):
         path = self.path.split("?")[0]
         acts = {"/api/edit": do_edit, "/api/select": do_select, "/api/render": do_render}
-        if path not in acts:
+        if path not in acts and path != '/api/upload':
             return self.send_error(404)
         try:
+            if path == '/api/upload':
+                size = int(self.headers.get('Content-Length') or 0)
+                if not 0 < size <= 50 * 1024 * 1024:
+                    raise ApiError('请选择不超过 50 MB 的音频文件。')
+                cid = parse_qs(urlsplit(self.path).query).get('id', [''])[0]
+                return self.send_json(do_upload(cid, self.rfile.read(size)))
             body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
             self.send_json(acts[path](body))
         except ApiError as e:

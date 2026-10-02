@@ -77,16 +77,17 @@
     if (!c) throw new Error('no cue ' + id);
     return c;
   };
-  const seg = (id, k = 0) => cue(id).subs[k].t0;
-  const segEnd = (id, k = 0) => cue(id).subs[k].t1;
+  const seg = (id, k = 0) => (cue(id).beats || cue(id).subs)[k].t0;
+  const segEnd = (id, k = 0) => (cue(id).beats || cue(id).subs)[k].t1;
   const vs = (id) => cue(id).voiceStart;
   const ve = (id) => cue(id).voiceEnd;
   /** Estimated time the n-th occurrence of `str` is spoken inside cue `id`. */
   function kw(id, str, n = 0) {
     const c = cue(id);
+    str = c.anchors?.[str] || str;
     let idx = -1;
     for (let i = 0; i <= n; i++) {
-      idx = c.text.indexOf(str, idx + 1);
+      idx = TM.language === 'en-US' ? c.text.toLowerCase().indexOf(str.toLowerCase(), idx + 1) : c.text.indexOf(str, idx + 1);
       if (idx < 0) throw new Error(`kw: "${str}" not in ${id}`);
     }
     const s = c.subs.find((s) => idx >= s.c0 && idx < s.c1) || c.subs[c.subs.length - 1];

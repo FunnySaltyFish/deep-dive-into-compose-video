@@ -1,9 +1,9 @@
-"""Render anim/index.html frame by frame with Playwright and pipe into ffmpeg.
+"""Render the selected localized animation with Playwright and pipe into ffmpeg.
 
 Usage:
-  python tools/render.py --w 960 --fps 30 --out build/video.mp4      # full render (silent)
-  python tools/render.py --stills 3,20,48 --w 1920                   # PNG stills for checking
-Also dumps build/sfx.json (sound cue list defined by the scene) for the mixer.
+  python tools/render.py --lang en-US --w 960 --fps 30             # full render (silent)
+  python tools/render.py --lang en-US --stills 3,20,48 --w 1920     # PNG stills
+  python tools/render.py --lang en-US --sfx                         # sound cue list
 """
 import argparse
 import json
@@ -12,8 +12,8 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-ROOT = Path(__file__).resolve().parent.parent
-PAGE = (ROOT / "anim" / "index.html").as_uri()
+from project import ROOT, BUILD
+PAGE = (BUILD / "anim" / "index.html").as_uri()
 
 
 def open_page(p, w):
@@ -41,7 +41,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--w", type=int, default=960)
     ap.add_argument("--fps", type=int, default=30)
-    ap.add_argument("--out", default="build/video_silent.mp4")
+    ap.add_argument("--out", default=str(BUILD / 'video_silent.mp4'))
+    ap.add_argument('--sfx', action='store_true', help='Write sound cues and exit')
     ap.add_argument("--stills", default="")
     ap.add_argument("--start", type=float, default=0)
     ap.add_argument("--end", type=float, default=None)
@@ -50,10 +51,14 @@ def main():
     with sync_playwright() as p:
         browser, page, h = open_page(p, a.w)
         dur = page.evaluate("window.DURATION")
-        (ROOT / "build" / "sfx.json").write_text(json.dumps(page.evaluate("window.SFX_LIST")), encoding="utf-8")
+        if a.sfx or a.stills:
+            (BUILD / "sfx.json").write_text(json.dumps(page.evaluate("window.SFX_LIST")), encoding="utf-8")
+        if a.sfx:
+            browser.close()
+            return
 
         if a.stills:
-            out = ROOT / "build" / "stills"
+            out = BUILD / "stills"
             out.mkdir(parents=True, exist_ok=True)
             times = []
             for x in a.stills.split(","):
@@ -84,7 +89,8 @@ def main():
             if i % (a.fps * 10) == 0:
                 print(f"  frame {i}/{n}", flush=True)
         ff.stdin.close()
-        ff.wait()
+        if ff.wait():
+            raise SystemExit('ffmpeg encoding failed')
         browser.close()
         print(f"video -> {a.out} ({n} frames, {dur:.1f}s)")
 

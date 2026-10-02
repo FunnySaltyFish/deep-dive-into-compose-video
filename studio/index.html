@@ -78,7 +78,7 @@ kbd { font: 12px ui-monospace, monospace; background: var(--panel2); border: 1px
       <label><input type="checkbox" id="follow" checked> 列表跟随</label>
       <span class="sp"></span>
       <span id="rstat"></span>
-      <button id="render">导出 960p 预览</button>
+      <button id="render">导出预览（960×540）</button>
     </div>
   </div>
   <div id="right">
@@ -87,6 +87,10 @@ kbd { font: 12px ui-monospace, monospace; background: var(--panel2); border: 1px
       <div>
         <label for="eText">字幕（屏幕上显示的文字）</label>
         <textarea id="eText" rows="3"></textarea>
+      </div>
+      <div id="segmentsBox" hidden>
+        <label for="eSegments">字幕分段（每行一段，保持原有段数与顺序）</label>
+        <textarea id="eSegments" rows="4"></textarea>
       </div>
       <div>
         <label for="eTts">朗读文本（可选，留空则按字幕朗读，比如把 200×80 写成"两百乘八十"）</label>
@@ -105,6 +109,12 @@ kbd { font: 12px ui-monospace, monospace; background: var(--panel2); border: 1px
         <button id="save">保存修改</button>
         <button id="revert">还原输入</button>
       </div>
+      <div>
+        <label for="audioFile">替换本句音频（WAV、MP3、M4A，不超过 50 MB）</label>
+        <input id="audioFile" type="file" accept="audio/*,.wav,.mp3,.m4a">
+        <button id="upload">导入并使用</button>
+        <div class="spoken">导入前请先保存文案修改。旧录音保留在历史版本中。</div>
+      </div>
       <div id="msg" role="status" aria-live="polite"></div>
       <div><label>历史版本</label><div id="takes"></div></div>
     </div>
@@ -122,9 +132,10 @@ const modified = new Set();   // cues changed in this session
 
 // ---------- speakable (mirror of tools/tts.py, for a live preview only) ----------
 function speakable(s) {
-  return s.replace(/(?<=\d)\.(?=\d)/g, '点')
-    .replace(/(?<=[A-Za-z0-9_)\]])\.(?=[A-Za-z])/g, ' 点 ')
-    .replace(/(?<![A-Za-z0-9])\.(?=[A-Za-z])/g, '点 ')
+  const en = S?.language === 'en-US';
+  return s.replace(/(?<=\d)\.(?=\d)/g, en ? ' point ' : '点')
+    .replace(/(?<=[A-Za-z0-9_)\]])\.(?=[A-Za-z])/g, en ? ' dot ' : ' 点 ')
+    .replace(/(?<![A-Za-z0-9])\.(?=[A-Za-z])/g, en ? 'dot ' : '点 ')
     .replace(/(?<=[a-z])(?=[A-Z])/g, ' ')
     .replace(/(?<=[A-Z])(?=[A-Z][a-z])/g, ' ')
     .replace(/ {2,}/g, ' ');
@@ -145,7 +156,7 @@ const ctx = new AudioContext();
 const bufs = new Map();      // file -> Promise<AudioBuffer>
 let playing = false, t0ctx = 0, t0 = 0, stopAt = null, srcs = [], scheduled = new Set(), headT = 0;
 function buf(file) {
-  if (!bufs.has(file)) bufs.set(file, fetch('/build/audio/' + file).then((r) => r.arrayBuffer()).then((b) => ctx.decodeAudioData(b)));
+  if (!bufs.has(file)) bufs.set(file, fetch(S.audioBase + file).then((r) => r.arrayBuffer()).then((b) => ctx.decodeAudioData(b)));
   return bufs.get(file);
 }
 const now = () => (playing ? t0 + (ctx.currentTime - t0ctx) : headT);
@@ -267,15 +278,17 @@ function fillEditor() {
   const c = byId[sel]; if (!c) return;
   const t = TM.cues.find((x) => x.id === sel);
   $('#eId').textContent = sel;
-  $('#eInfo').textContent = t ? `${fmt(t.start)} · 语音 ${(t.voiceEnd - t.voiceStart).toFixed(2)} 秒${c.take ? ' · 第 ' + c.take + ' 版' : ''}` : '';
+  $('#eInfo').textContent = t ? `${S.language === 'en-US' ? '英文' : '中文'} · ${fmt(t.start)} · 语音 ${(t.voiceEnd - t.voiceStart).toFixed(2)} 秒${c.take ? ' · 第 ' + c.take + ' 版' : ''}` : '';
   $('#eText').value = c.text; $('#eTts').value = c.tts || ''; $('#eStyle').value = c.style || ''; $('#eGap').value = c.gap ?? 0.4;
+  $('#segmentsBox').hidden = !c.segments;
+  $('#eSegments').value = (c.segments || []).map((s) => s.trim()).join('\n');
   updateSpoken();
   const T = $('#takes'); T.innerHTML = '';
   const list = (S.takes[sel] || []).slice().reverse();
   for (const e of list) {
     const d = document.createElement('div'); d.className = 'take' + (e.file === c.file ? ' cur' : '');
     d.innerHTML = `<span></span><span class="tx"></span><button>试听</button>${e.file === c.file ? '<span style="color:var(--ok)">使用中</span>' : '<button>用这一版</button>'}`;
-    d.firstChild.textContent = `${e.at} · ${e.duration.toFixed(2)}s`;
+    d.firstChild.textContent = `${e.at} · ${e.duration.toFixed(2)}s${e.audio ? ' · 导入' : ''}`;
     d.querySelector('.tx').textContent = e.tts || e.text; d.querySelector('.tx').title = (e.tts || e.text) + (e.style ? `\n语气：${e.style}` : '');
     const [bPlay, bUse] = d.querySelectorAll('button');
     bPlay.onclick = () => audition(e.file);
@@ -289,12 +302,20 @@ function select(id) {
   sel = id; fillEditor(); markSel(); msg('');
   const e = document.querySelector(`.cue[data-id="${id}"]`); if (e) e.scrollIntoView({ block: 'nearest' });
 }
-function edits() { return { id: sel, text: $('#eText').value, tts: $('#eTts').value, style: $('#eStyle').value, gap: parseFloat($('#eGap').value) || 0 }; }
-function dirty() { const c = byId[sel], e = edits(); return e.text.trim() !== c.text || e.tts.trim() !== (c.tts || '') || e.style.trim() !== (c.style || '') || e.gap !== (c.gap ?? 0.4); }
+function edits() {
+  const e = { id: sel, text: $('#eText').value, tts: $('#eTts').value, style: $('#eStyle').value, gap: parseFloat($('#eGap').value) || 0 };
+  if (byId[sel].segments) {
+    const lines = $('#eSegments').value.split('\n').map((s) => s.trim());
+    e.segments = lines.map((s, i) => s + (i < lines.length - 1 ? ' ' : ''));
+  }
+  return e;
+}
+function dirty() { const c = byId[sel], e = edits(); return e.text.trim() !== c.text || e.tts.trim() !== (c.tts || '') || e.style.trim() !== (c.style || '') || e.gap !== (c.gap ?? 0.4) || (c.segments && JSON.stringify(e.segments) !== JSON.stringify(c.segments)); }
 
 // ---------- server round trips ----------
 function applyState(st) {
   S = st; TM = st.timing; byId = Object.fromEntries(st.cues.filter((c) => c.text).map((c) => [c.id, c]));
+  document.title = `${st.language === 'en-US' ? '英文' : '中文'}配音工作台 · ${st.video}`;
   // timing entries carry the file actually used for playback
   buildTimeline(); buildList(); if (sel) fillEditor(); renderStatus(st.render);
 }
@@ -302,10 +323,10 @@ function reloadFrame() {
   return new Promise((res) => {
     frame.onload = () => {
       const w = frame.contentWindow;
-      if (!w.DURATION) msg('动画页初始化失败（可能有 kw 关键词对不上），打开 /anim/index.html 看控制台', 'err');
+      if (!w.DURATION) msg('动画预览加载失败，请检查脚本后重试。', 'err');
       res();
     };
-    frame.src = '/anim/index.html?v=' + Date.now();
+    frame.src = S.animationUrl + '?v=' + Date.now();
   });
 }
 let running = false;
@@ -315,7 +336,11 @@ async function run(path, body, text, force = false) {
   const rel = headT - oldStart;
   stop(); busy(text); msg(''); setButtons(false);
   try {
-    const st = await api(path, force ? { ...body, force: true } : body);
+    let st;
+    if (path === '/api/upload') {
+      const r = await fetch(path + '?id=' + encodeURIComponent(id), { method: 'POST', body: body.file });
+      st = await r.json(); if (!r.ok) throw new Error(st.error || '导入失败');
+    } else st = await api(path, force ? { ...body, force: true } : body);
     modified.add(id);
     applyState(st);
     await reloadFrame();
@@ -333,7 +358,7 @@ async function run(path, body, text, force = false) {
     } else msg(e.message, 'err');
   } finally { running = false; setButtons(true); }
 }
-function setButtons(on) { ['#regen', '#save', '#render'].forEach((s) => ($(s).disabled = !on)); }
+function setButtons(on) { ['#regen', '#save', '#render', '#upload'].forEach((s) => ($(s).disabled = !on)); }
 
 // ---------- export ----------
 let rTimer = null;
@@ -357,6 +382,14 @@ $('#playCue').onclick = () => sel && playCue(sel);
 $('#regen').onclick = () => sel && run('/api/edit', { ...(dirty() ? edits() : { id: sel }), newTake: true }, `正在重新生成 ${sel}…`);
 $('#save').onclick = () => sel && (dirty() ? run('/api/edit', edits(), `正在保存并生成 ${sel}…`) : msg('没有改动'));
 $('#revert').onclick = () => { fillEditor(); msg(''); };
+$('#upload').onclick = () => {
+  if (!sel) return;
+  if (dirty()) return msg('请先保存文案修改，再导入音频。', 'err');
+  const file = $('#audioFile').files[0];
+  if (!file) return msg('请先选择音频文件。', 'err');
+  if (file.size > 50 * 1024 * 1024) return msg('请选择不超过 50 MB 的音频文件。', 'err');
+  run('/api/upload', { id: sel, file }, '正在导入音频并调整时间线…');
+};
 $('#render').onclick = async () => { try { renderStatus((await api('/api/render', { w: 960, jobs: 8 })).render); } catch (e) { msg(e.message, 'err'); } };
 ['#eText', '#eTts'].forEach((s) => $(s).addEventListener('input', updateSpoken));
 const tlEl = $('#tline');

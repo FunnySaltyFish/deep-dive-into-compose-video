@@ -1,0 +1,6 @@
+{
+  "id": "compose-click",
+  "languages": ["zh-CN", "en-US"],
+  "canvas": {"width": 1920, "height": 1080},
+  "sourceVersion": "Jetpack Compose 1.12.1"
+}

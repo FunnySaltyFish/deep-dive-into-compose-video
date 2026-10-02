@@ -42,7 +42,7 @@
     tl.fromTo(t, { y: 30, opacity: 0, letterSpacing: '0.3em' }, { y: 0, opacity: 1, letterSpacing: '0.06em', duration: 0.8, ease: 'expo.out', ...IR }, c.t0 + 0.12);
     tl.to(card, { opacity: 0, y: -30, duration: 0.45, ease: 'power2.in' }, c.body - 0.5);
     sfx(c.t0, 'chapter', 0.8);
-    const [num, name] = [c.num, c.name.split('：')[0]];
+    const [num, name] = [c.num, c.name.split(/[：:]/)[0]];
     setChapter(c.body - 0.2, num, name);
   });
   chs.forEach((c) => {
