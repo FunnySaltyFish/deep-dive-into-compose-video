@@ -1,6 +1,6 @@
 """Generate narration wavs for every cue in a script JSON via MiMo TTS.
 
-Usage: python tools/tts.py script/sample.json
+Usage: python tools/tts.py script/full.json [--dry]
 Writes build/audio/<cue_id>.wav and build/audio/manifest.json (durations).
 Results are cached by (text, voice, style) hash, so unchanged lines are not re-synthesized.
 """

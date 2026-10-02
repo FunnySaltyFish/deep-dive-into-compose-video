@@ -1,14 +1,15 @@
 {
-  "name": "how-composable-works-2",
+  "name": "deep-dive-into-compose-video",
   "version": "1.0.0",
-  "description": "",
+  "description": "Animated deep dive: what happens inside Jetpack Compose when you tap +1",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "UNLICENSED",
+  "private": true,
   "type": "commonjs",
   "dependencies": {
     "gsap": "3.13.0"
