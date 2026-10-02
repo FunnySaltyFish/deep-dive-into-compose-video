@@ -18,7 +18,10 @@ PAGE = (ROOT / "anim" / "index.html").as_uri()
 
 def open_page(p, w):
     h = w * 9 // 16
-    browser = p.chromium.launch(args=["--font-render-hinting=none"])
+    try:
+        browser = p.chromium.launch(args=["--font-render-hinting=none"])
+    except Exception:  # bundled Chromium missing (e.g. after a playwright upgrade): fall back to installed Edge
+        browser = p.chromium.launch(channel="msedge", args=["--font-render-hinting=none"])
     page = browser.new_page(viewport={"width": w, "height": h})
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))

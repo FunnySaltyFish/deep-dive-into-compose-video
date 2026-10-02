@@ -45,45 +45,65 @@ def wav_duration(path: Path) -> float:
         return w.getnframes() / w.getframerate()
 
 
+def spoken_for(cue):
+    """Text actually sent to TTS (subtitles keep cue['text'])."""
+    return speakable(cue.get("tts") or cue["text"])
+
+
+def audio_path(script, cue, take=None):
+    """Cache file for a cue. Different takes of the same line get different files (take 0 keeps the old key)."""
+    take = cue.get("take", 0) if take is None else take
+    voice, style = script.get("voice", "白桦"), script.get("style", "")
+    raw = f"{voice}|{style}|{cue.get('style','')}|{spoken_for(cue)}" + (f"|take{take}" if take else "")
+    return AUDIO / f"{cue['id']}_{hashlib.sha1(raw.encode()).hexdigest()[:12]}.wav"
+
+
+def make_client():
+    load_env()
+    return OpenAI(api_key=os.environ["MIMO_API_KEY"], base_url="https://api.xiaomimimo.com/v1")
+
+
+def synth(client, script, cue, take=None):
+    """Synthesize one cue (unless cached) and return its manifest entry."""
+    out = audio_path(script, cue, take)
+    if not out.exists():
+        AUDIO.mkdir(parents=True, exist_ok=True)
+        messages = []
+        s = (script.get("style", "") + " " + cue.get("style", "")).strip()
+        if s:
+            messages.append({"role": "user", "content": s})
+        messages.append({"role": "assistant", "content": spoken_for(cue)})
+        for attempt in range(4):
+            try:
+                resp = client.chat.completions.create(
+                    model="mimo-v2.5-tts",
+                    messages=messages,
+                    audio={"format": "wav", "voice": script.get("voice", "白桦")},
+                )
+                tmp = out.with_suffix(".part")
+                tmp.write_bytes(base64.b64decode(resp.choices[0].message.audio.data))
+                tmp.replace(out)
+                break
+            except Exception as e:  # transient API errors: retry a few times
+                print(f"[tts] {cue['id']} attempt {attempt + 1} failed: {e}")
+                time.sleep(2 + attempt * 3)
+        else:
+            raise RuntimeError(f"tts failed for {cue['id']}")
+        print(f"[tts] {cue['id']}: {cue['text'][:30]}")
+    return {"file": out.name, "duration": round(wav_duration(out), 3), "text": cue["text"]}
+
+
 def main(script_path: str):
     if "--dry" in sys.argv:
         for c in json.loads(Path(script_path).read_text(encoding="utf-8"))["cues"]:
-            if "text" in c and speakable(c.get("tts", c["text"])) != c.get("tts", c["text"]):
-                print(c["id"], speakable(c.get("tts", c["text"])))
+            if "text" in c and spoken_for(c) != (c.get("tts") or c["text"]):
+                print(c["id"], spoken_for(c))
         return
-    load_env()
     script = json.loads(Path(script_path).read_text(encoding="utf-8"))
-    voice = script.get("voice", "白桦")
-    style = script.get("style", "")
-    AUDIO.mkdir(parents=True, exist_ok=True)
-    client = OpenAI(api_key=os.environ["MIMO_API_KEY"], base_url="https://api.xiaomimimo.com/v1")
+    client = make_client()
 
     def job(cue):
-        spoken = speakable(cue.get("tts", cue["text"]))  # tts may spell numbers out; the words stay identical
-        key = hashlib.sha1(f"{voice}|{style}|{cue.get('style','')}|{spoken}".encode()).hexdigest()[:12]
-        out = AUDIO / f"{cue['id']}_{key}.wav"
-        if not out.exists():
-            messages = []
-            s = (style + " " + cue.get("style", "")).strip()
-            if s:
-                messages.append({"role": "user", "content": s})
-            messages.append({"role": "assistant", "content": spoken})
-            for attempt in range(4):
-                try:
-                    resp = client.chat.completions.create(
-                        model="mimo-v2.5-tts",
-                        messages=messages,
-                        audio={"format": "wav", "voice": voice},
-                    )
-                    out.write_bytes(base64.b64decode(resp.choices[0].message.audio.data))
-                    break
-                except Exception as e:  # transient API errors: retry a few times
-                    print(f"[tts] {cue['id']} attempt {attempt + 1} failed: {e}")
-                    time.sleep(2 + attempt * 3)
-            else:
-                raise SystemExit(f"tts failed for {cue['id']}")
-            print(f"[tts] {cue['id']}: {cue['text'][:30]}")
-        return cue["id"], {"file": out.name, "duration": round(wav_duration(out), 3), "text": cue["text"]}
+        return cue["id"], synth(client, script, cue)
 
     speech = [c for c in script["cues"] if "text" in c]
     with ThreadPoolExecutor(max_workers=6) as ex:
