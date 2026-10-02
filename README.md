@@ -99,3 +99,10 @@ cover/         B 站封面（16:9 与 4:3），python cover/shoot.py 重新导�
 ref/           源码全链路参考文档与示例 Counter.kt
 build/         生成产物（不入库）
 ```
+
+## 许可证
+
+- **代码**（`anim/`、`tools/`、`studio/`、`cover/` 下的脚本与页面等）：[MIT](LICENSE)
+- **内容**（视频、文案 `script/`、参考文档 `ref/`、封面图片）：[CC BY-NC 4.0](LICENSE-CONTENT)，可以转载和改编，需署名、不得商用
+
+参考文档中引用的 Jetpack Compose 源码片段版权归 The Android Open Source Project 所有（Apache License 2.0）。

@@ -8,7 +8,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "private": true,
   "type": "commonjs",
   "dependencies": {
