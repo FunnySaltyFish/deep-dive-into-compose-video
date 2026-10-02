@@ -53,6 +53,10 @@ svg.links { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 
 .badge { position: absolute; z-index: 6; font: 800 44px var(--sans); color: #0b0f17; background: var(--upd);
   padding: 10px 28px; border-radius: 16px; transform: rotate(-4deg); box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+
+/* ---- WeChat Channels ---- */
+.cv.w34 { width: 1080px; height: 1440px; background: radial-gradient(1000px 1100px at 60% 70%, #16223a, var(--bg0) 72%); }
+.cv.w43 { width: 1440px; height: 1080px; }
 </style>
 </head>
 <body>
@@ -126,6 +130,59 @@ svg.links { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
     <span class="chip" style="--c:var(--a2)">重组</span>
     <span class="chip" style="--c:var(--keep)">LayoutNode</span>
   </div>
+</div>
+
+
+<!-- 视频号 · 个人主页卡片 3:4 -->
+<div class="cv w34" id="w34">
+  <div class="grid"></div>
+  <div class="glow" style="left:180px;top:620px;width:1000px;height:1000px;background:radial-gradient(circle,rgba(94,234,212,.16),transparent 62%)"></div>
+  <div class="title" style="left:84px;top:96px">
+    <div class="kicker">Jetpack Compose · 源码</div>
+    <div class="h1" style="font-size:190px">点一下 <em>+1</em></div>
+    <div class="h2" style="font-size:84px">发生了<b>什么</b>？</div>
+  </div>
+  <div class="phone" style="left:330px;top:700px;transform:scale(0.92);transform-origin:0 0">
+    <div class="screen">
+      <div class="card">Odd<span>1</span></div>
+      <div class="line2">Odd branch<br>Extra line</div>
+      <div class="btn">+1</div>
+    </div>
+  </div>
+  <div class="ring" style="left:615px;top:1224px;width:147px;height:147px;opacity:0.9"></div>
+  <div class="ring" style="left:574px;top:1183px;width:230px;height:230px;opacity:0.45"></div>
+  <div class="ring" style="left:528px;top:1137px;width:322px;height:322px;opacity:0.2"></div>
+  <div class="finger" style="left:634px;top:1243px;width:110px;height:110px"></div>
+  <div class="badge" style="left:620px;top:640px;font-size:46px">19 分钟全链路</div>
+  <div class="pipe" style="left:70px;top:760px;gap:20px">
+    <div class="st" style="--c:var(--a3)">命中测试</div>
+    <div class="st" style="--c:var(--upd)">状态写入</div>
+    <div class="st" style="--c:var(--a2)">重组</div>
+    <div class="st" style="--c:var(--keep)">Applier</div>
+  </div>
+</div>
+
+<!-- 视频号 · 分享卡片 4:3 -->
+<div class="cv w43" id="w43">
+  <div class="grid"></div>
+  <div class="glow" style="left:760px;top:120px;width:900px;height:900px;background:radial-gradient(circle,rgba(94,234,212,.16),transparent 62%)"></div>
+  <div class="title" style="left:90px;top:110px">
+    <div class="kicker">Jetpack Compose · 源码</div>
+    <div class="h1" style="font-size:170px">点一下<br><em>+1</em></div>
+    <div class="h2" style="font-size:78px">Compose 里<br>发生了<b>什么</b>？</div>
+  </div>
+  <div class="phone" style="left:900px;top:150px;transform:scale(1);transform-origin:0 0">
+    <div class="screen">
+      <div class="card">Odd<span>1</span></div>
+      <div class="line2">Odd branch<br>Extra line</div>
+      <div class="btn">+1</div>
+    </div>
+  </div>
+  <div class="ring" style="left:1210px;top:720px;width:160px;height:160px;opacity:0.9"></div>
+  <div class="ring" style="left:1165px;top:675px;width:250px;height:250px;opacity:0.45"></div>
+  <div class="ring" style="left:1115px;top:625px;width:350px;height:350px;opacity:0.2"></div>
+  <div class="finger" style="left:1230px;top:740px;width:120px;height:120px"></div>
+  <div class="badge" style="left:1010px;top:80px">19 分钟全链路</div>
 </div>
 
 </body>
